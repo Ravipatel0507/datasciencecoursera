@@ -453,15 +453,6 @@ cat("  - iris_summary_statistics.csv\n")
 - **Dataset:** Fisher's Iris Dataset (classic machine learning dataset)
 - **Retrieved:** `r Sys.Date()`
 
-## Processing Steps
-
-1. ✅ Load raw data directly from GitHub
-2. ✅ Assess data quality
-3. ✅ Transform to tidy format
-4. ✅ Document all variables (code book)
-5. ✅ Perform exploratory analysis
-6. ✅ Conduct statistical tests
-7. ✅ Save processed data
 
 ## Session Information
 

@@ -1,0 +1,4 @@
+"Species","Count","Mean Sepal Length","Mean Sepal Width","Mean Petal Length","Mean Petal Width","Mean Sepal Area","Mean Petal Area"
+"Setosa",50,5.01,3.43,1.46,0.25,17.26,0.37
+"Versicolor",50,5.94,2.77,4.26,1.33,16.53,5.72
+"Virginica",50,6.59,2.97,5.55,2.03,19.68,11.3

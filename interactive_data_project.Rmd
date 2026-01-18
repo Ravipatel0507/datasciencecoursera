@@ -1,0 +1,538 @@
+---
+title: "Interactive Data Project - Using Real GitHub Data"
+author: "Ravi Patel;"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+# Install and load packages
+if(!require(tidyverse)) install.packages("tidyverse")
+if(!require(DT)) install.packages("DT")
+
+
+library(tidyverse)
+library(DT)
+library(knitr)
+```
+
+# Introduction
+
+This project demonstrates **data sharing best practices** by:
+
+- Loading real data directly from GitHub
+- Cleaning and transforming it to tidy format
+- Performing analysis
+- Creating visualizations
+
+All following the principles from "How to share data with a statistician" guide.
+
+---
+
+# Part 1: Load Raw Data from GitHub
+
+We'll use the famous **Iris dataset** and **mtcars dataset** from public GitHub repositories.
+
+```{r load-data}
+# Load Iris dataset from GitHub
+iris_url <- "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv"
+raw_iris <- read.csv(iris_url)
+
+cat("✅ Iris dataset loaded\n")
+cat("Dimensions:", nrow(raw_iris), "rows ×", ncol(raw_iris), "columns\n\n")
+
+# Display raw data
+head(raw_iris, 10)
+```
+
+## Raw Data Preview (Interactive)
+
+```{r raw-data-table}
+datatable(
+  raw_iris,
+  caption = "Raw Iris Data from GitHub - Click to explore!",
+  options = list(pageLength = 10, scrollX = TRUE),
+  filter = 'top'
+)
+```
+
+---
+
+# Part 2: Data Quality Assessment
+
+Let's examine the raw data for issues.
+
+```{r data-quality}
+# Check structure
+cat("=== Data Structure ===\n")
+str(raw_iris)
+
+cat("\n=== Summary Statistics ===\n")
+summary(raw_iris)
+
+cat("\n=== Missing Values ===\n")
+missing_counts <- colSums(is.na(raw_iris))
+print(missing_counts)
+
+cat("\n=== Unique Species ===\n")
+print(unique(raw_iris$species))
+```
+
+## Quality Issues Found
+
+```{r quality-issues}
+issues <- tibble(
+  Issue = c(
+    "Column names not descriptive",
+    "Measurements mixed in single dataset",
+    "Species names could be standardized"
+  ),
+  Severity = c("Medium", "Low", "Low"),
+  Action = c(
+    "Rename to be more descriptive",
+    "Already tidy - one measurement per column",
+    "Capitalize species names consistently"
+  )
+)
+
+kable(issues, caption = "Data Quality Assessment")
+```
+
+---
+
+# Part 3: Transform to Tidy Data
+
+Following tidy data principles:
+- Each variable in one column ✓
+- Each observation in one row ✓
+- Descriptive variable names ✓
+
+```{r tidy-data}
+tidy_iris <- raw_iris %>%
+  # Rename columns to be more descriptive
+  rename(
+    SepalLength_cm = sepal_length,
+    SepalWidth_cm = sepal_width,
+    PetalLength_cm = petal_length,
+    PetalWidth_cm = petal_width,
+    Species = species
+  ) %>%
+  # Standardize species names
+  mutate(
+    Species = str_to_title(Species),
+    # Add ID column
+    FlowerID = row_number(),
+    # Calculate sepal area
+    SepalArea_cm2 = round(SepalLength_cm * SepalWidth_cm, 2),
+    # Calculate petal area
+    PetalArea_cm2 = round(PetalLength_cm * PetalWidth_cm, 2),
+    # Categorize by petal size
+    PetalSize = case_when(
+      PetalLength_cm < 2 ~ "Small",
+      PetalLength_cm < 5 ~ "Medium",
+      TRUE ~ "Large"
+    )
+  ) %>%
+  # Reorder columns
+  select(FlowerID, Species, everything())
+
+cat("✅ Data cleaned and transformed!\n\n")
+
+# Display tidy data
+datatable(
+  tidy_iris,
+  caption = "Tidy Iris Data - Fully Processed",
+  options = list(pageLength = 10)
+)
+```
+
+## Transformation Summary
+
+```{r transformation-log}
+transformations <- tibble(
+  Step = 1:6,
+  Action = c(
+    "Renamed variables to descriptive names",
+    "Standardized species names (Title Case)",
+    "Added unique FlowerID identifier",
+    "Calculated derived variable: Sepal Area",
+    "Calculated derived variable: Petal Area",
+    "Categorized flowers by petal size"
+  ),
+  Before = c(
+    "sepal_length",
+    "setosa",
+    "No ID column",
+    "N/A",
+    "N/A",
+    "N/A"
+  ),
+  After = c(
+    "SepalLength_cm",
+    "Setosa",
+    "FlowerID: 1-150",
+    "SepalArea_cm2",
+    "PetalArea_cm2",
+    "PetalSize: Small/Medium/Large"
+  )
+)
+
+kable(transformations, caption = "Data Transformation Steps")
+```
+
+---
+
+# Part 4: Code Book
+
+Documentation of all variables in the tidy dataset.
+
+```{r codebook}
+codebook <- tibble(
+  Variable = c(
+    "FlowerID",
+    "Species",
+    "SepalLength_cm",
+    "SepalWidth_cm",
+    "PetalLength_cm",
+    "PetalWidth_cm",
+    "SepalArea_cm2",
+    "PetalArea_cm2",
+    "PetalSize"
+  ),
+  Type = c(
+    "ID",
+    "Categorical",
+    "Continuous",
+    "Continuous",
+    "Continuous",
+    "Continuous",
+    "Continuous",
+    "Continuous",
+    "Categorical"
+  ),
+  Units = c(
+    "N/A",
+    "N/A",
+    "centimeters",
+    "centimeters",
+    "centimeters",
+    "centimeters",
+    "square cm",
+    "square cm",
+    "N/A"
+  ),
+  Description = c(
+    "Unique identifier for each flower",
+    "Iris species name",
+    "Length of sepal",
+    "Width of sepal",
+    "Length of petal",
+    "Width of petal",
+    "Calculated: Length × Width of sepal",
+    "Calculated: Length × Width of petal",
+    "Size category based on petal length"
+  ),
+  Values = c(
+    "1 to 150",
+    "Setosa, Versicolor, Virginica",
+    "4.3 to 7.9",
+    "2.0 to 4.4",
+    "1.0 to 6.9",
+    "0.1 to 2.5",
+    "Calculated",
+    "Calculated",
+    "Small, Medium, Large"
+  )
+)
+
+datatable(
+  codebook,
+  caption = "Complete Code Book - Interactive",
+  options = list(pageLength = 10)
+)
+```
+
+---
+
+# Part 5: Exploratory Data Analysis
+
+## 5.1 Overall Statistics by Species
+
+```{r species-stats}
+species_summary <- tidy_iris %>%
+  group_by(Species) %>%
+  summarise(
+    Count = n(),
+    `Mean Sepal Length` = round(mean(SepalLength_cm), 2),
+    `Mean Sepal Width` = round(mean(SepalWidth_cm), 2),
+    `Mean Petal Length` = round(mean(PetalLength_cm), 2),
+    `Mean Petal Width` = round(mean(PetalWidth_cm), 2),
+    `Mean Sepal Area` = round(mean(SepalArea_cm2), 2),
+    `Mean Petal Area` = round(mean(PetalArea_cm2), 2)
+  )
+
+kable(species_summary, caption = "Summary Statistics by Species")
+```
+
+## 5.2 Distribution of Measurements
+
+```{r distributions}
+# Create histogram for sepal length
+ggplot(tidy_iris, aes(x = SepalLength_cm, fill = Species)) +
+  geom_histogram(bins = 20, alpha = 0.7, position = "identity") +
+  labs(
+    title = "Distribution of Sepal Length by Species",
+    x = "Sepal Length (cm)",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1")
+```
+
+```{r petal-distribution}
+# Create histogram for petal length
+ggplot(tidy_iris, aes(x = PetalLength_cm, fill = Species)) +
+  geom_histogram(bins = 20, alpha = 0.7, position = "identity") +
+  labs(
+    title = "Distribution of Petal Length by Species",
+    x = "Petal Length (cm)",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2")
+```
+
+## 5.3 Relationship: Sepal vs Petal
+
+```{r scatter-plot}
+ggplot(tidy_iris, aes(x = SepalLength_cm, y = PetalLength_cm, color = Species)) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed") +
+  labs(
+    title = "Sepal Length vs Petal Length by Species",
+    x = "Sepal Length (cm)",
+    y = "Petal Length (cm)",
+    color = "Species"
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Dark2")
+```
+
+## 5.4 Box Plots: Measurements by Species
+
+```{r boxplots}
+# Sepal Length
+ggplot(tidy_iris, aes(x = Species, y = SepalLength_cm, fill = Species)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, alpha = 0.3) +
+  labs(
+    title = "Sepal Length by Species",
+    x = "Species",
+    y = "Sepal Length (cm)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+```{r petal-boxplot}
+# Petal Area
+ggplot(tidy_iris, aes(x = Species, y = PetalArea_cm2, fill = Species)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, alpha = 0.3) +
+  labs(
+    title = "Petal Area by Species",
+    x = "Species",
+    y = "Petal Area (cm²)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## 5.5 Petal Size Categories
+
+```{r size-categories}
+size_summary <- tidy_iris %>%
+  count(Species, PetalSize) %>%
+  group_by(Species) %>%
+  mutate(Percentage = round(n / sum(n) * 100, 1))
+
+ggplot(size_summary, aes(x = Species, y = n, fill = PetalSize)) +
+  geom_col(position = "dodge") +
+  geom_text(aes(label = paste0(n, " (", Percentage, "%)")), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  labs(
+    title = "Petal Size Distribution by Species",
+    x = "Species",
+    y = "Count",
+    fill = "Petal Size"
+  ) +
+  theme_minimal()
+```
+
+---
+
+# Part 6: Statistical Analysis
+
+## 6.1 ANOVA: Test Differences Between Species
+
+```{r anova-sepal}
+# Test if sepal length differs by species
+sepal_anova <- aov(SepalLength_cm ~ Species, data = tidy_iris)
+
+cat("=== ANOVA: Sepal Length by Species ===\n")
+print(summary(sepal_anova))
+
+# Post-hoc test
+cat("\n=== Tukey HSD Post-hoc Test ===\n")
+print(TukeyHSD(sepal_anova))
+```
+
+```{r anova-petal}
+# Test if petal length differs by species
+petal_anova <- aov(PetalLength_cm ~ Species, data = tidy_iris)
+
+cat("=== ANOVA: Petal Length by Species ===\n")
+print(summary(petal_anova))
+```
+
+## 6.2 Correlation Analysis
+
+```{r correlation}
+# Select numeric variables
+numeric_vars <- tidy_iris %>%
+  select(SepalLength_cm, SepalWidth_cm, PetalLength_cm, PetalWidth_cm, 
+         SepalArea_cm2, PetalArea_cm2)
+
+# Calculate correlation matrix
+cor_matrix <- cor(numeric_vars)
+
+kable(round(cor_matrix, 3), caption = "Correlation Matrix")
+```
+
+## 6.3 Linear Regression
+
+```{r regression}
+# Model: Predict Petal Length from Sepal Length
+model <- lm(PetalLength_cm ~ SepalLength_cm + Species, data = tidy_iris)
+
+cat("=== Linear Regression Model ===\n")
+cat("Predicting Petal Length from Sepal Length and Species\n\n")
+print(summary(model))
+```
+
+---
+
+# Part 7: Save Processed Data
+
+```{r save-data}
+# Save tidy data
+write.csv(tidy_iris, "tidy_iris_data.csv", row.names = FALSE)
+
+# Save summary statistics
+write.csv(species_summary, "iris_summary_statistics.csv", row.names = FALSE)
+
+cat("✅ Files saved:\n")
+cat("  - tidy_iris_data.csv\n")
+cat("  - iris_summary_statistics.csv\n")
+```
+
+---
+
+# Part 8: Reproducibility Information
+
+## Data Source
+
+- **Original Data:** https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv
+- **Dataset:** Fisher's Iris Dataset (classic machine learning dataset)
+- **Retrieved:** `r Sys.Date()`
+
+## Processing Steps
+
+1. ✅ Load raw data directly from GitHub
+2. ✅ Assess data quality
+3. ✅ Transform to tidy format
+4. ✅ Document all variables (code book)
+5. ✅ Perform exploratory analysis
+6. ✅ Conduct statistical tests
+7. ✅ Save processed data
+
+## Session Information
+
+```{r session-info}
+sessionInfo()
+```
+
+## How to Reproduce
+
+**Step 1:** Install required packages
+```r
+install.packages(c("tidyverse", "DT", "knitr"))
+```
+
+**Step 2:** Save this R Markdown file
+
+**Step 3:** Click "Knit" button
+
+**Result:** Complete analysis regenerated from source data!
+
+---
+
+# Part 9: Summary
+
+## What This Project Demonstrates
+
+```{r summary-table}
+accomplishments <- tibble(
+  `Best Practice` = c(
+    "Raw data preserved",
+    "Data loaded from source",
+    "Tidy data principles followed",
+    "Complete code book provided",
+    "Processing fully documented",
+    "Analysis is reproducible",
+    "Missing data handled",
+    "Variables are descriptive",
+    "Statistical tests performed"
+  ),
+  `Status` = rep("✅", 9),
+  `Evidence` = c(
+    "Original GitHub data untouched",
+    "Direct URL fetch, no manual downloads",
+    "Each variable in column, observation in row",
+    "Full documentation with units",
+    "Every transformation shown with code",
+    "One-click regeneration",
+    "Checked and reported (none found)",
+    "Clear names with units (e.g., SepalLength_cm)",
+    "ANOVA, correlation, regression included"
+  )
+)
+
+datatable(
+  accomplishments,
+  caption = "Data Sharing Best Practices - Summary",
+  options = list(pageLength = 10)
+)
+```
+
+## Key Findings
+
+1. **Species are clearly distinct** - ANOVA shows significant differences (p < 0.001)
+2. **Strong correlations** - Petal measurements highly correlated (r > 0.96)
+3. **Setosa is unique** - Smallest petals, easy to distinguish
+4. **Linear relationships** - Sepal and petal lengths are related
+
+---
+
+**End of Report**
+
+*This analysis is fully reproducible. The data is fetched directly from GitHub each time the document is knitted, ensuring you always have the latest version.*
+
+*Generated: `r Sys.time()`*
